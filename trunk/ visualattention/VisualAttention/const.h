@@ -5,6 +5,14 @@
 #include <cv.h>
 #include <cxcore.h>
 
+//The type of normalizing feature map
+enum{
+	VAM_NAVIE_SUM = 0,
+	VAM_LINEAR_COMBINATIOIN = 1,
+	VAM_NON_LINEAR_AMPLIFICATION = 2,
+	VAM_ITERATIVE_LOCALIZED_INTERACTIONS = 3
+}VAM_Type_Norm_Feat_Map;
+
 static CvSize GlobalImageSize;
 
 #define Abs(x) x>0 ? x : -x
@@ -13,7 +21,7 @@ static CvSize GlobalImageSize;
 #define PI 3.14159265
 #define TOTALSCALE 9
 
-#define GABOR_SIZE  9
+#define m_sizeOfGaborFilter  9
 #define GABOR_UL   0.04
 #define GABOR_UH   0.5
 #define GABOR_ORI 4
