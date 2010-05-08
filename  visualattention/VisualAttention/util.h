@@ -13,5 +13,7 @@ void PrintMatData(CvMat *mat,char* msg);
 void SimDispMat(CvMat *matImage);
 void DispImage(IplImage *img);
 
+void CvSizeCopy(CvSize* pDst, const CvSize* pSrc);
+IplImage* MatToImage(CvMat* mat);
 
 #endif

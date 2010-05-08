@@ -2,6 +2,28 @@
 #include "util.h"
 #include "const.h"
 
+IplImage* MatToImage(CvMat* mat)
+{
+	IplImage *img;
+	CvSize imgSize = cvSize(mat->cols, mat->rows);
+	
+	if(mat->type == CV_8UC1){
+		img = cvCreateImageHeader(imgSize, IPL_DEPTH_8U, 1);
+	}else if(cvGetElemType(mat) == CV_32FC1){
+		img = cvCreateImageHeader(imgSize, IPL_DEPTH_32F, 1);
+	}else if(cvGetElemType(mat) == CV_8UC3){
+		img = cvCreateImageHeader(imgSize, IPL_DEPTH_8U, 3);
+	}else if(cvGetElemType(mat) == CV_32FC3){
+		img = cvCreateImageHeader(imgSize, IPL_DEPTH_32F, 3);
+	}
+	cvGetImage(mat, img);
+	return img;
+}
+void CvSizeCopy(CvSize* pDst, const CvSize* pSrc)
+{
+	memcpy(pDst, pSrc, sizeof(CvSize));
+}
+
 //显示矩阵格式储存的图像
 void DispMat(CvMat	*matImage)
 {

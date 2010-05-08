@@ -5,6 +5,7 @@
 #include "saliency_map.h"
 #include <time.h>
 using namespace std;
+using namespace cv;
 
 int main()
 {
@@ -16,6 +17,8 @@ int main()
 	CvMat *pyrMat[9];
 	char imgName[40];
 
+	VAMToolbox vam;
+
 	float timeCntBegin;
 	float timeCntEnd;
 
@@ -26,33 +29,16 @@ int main()
 	{
 		printf("\nPlease type the image name,then you will get the saliency map.\n");
 		printf("Image Name:  ");
-		//scanf("%s",imgName);
-		//if((img=cvLoadImage(imgName,1))==NULL)
-		if((img=cvLoadImage("lena.jpg",1))==NULL)
+		scanf("%s",imgName);
+		if(vam.LoadImage(imgName) == -1)
 		{
 			printf("\n>>>>Fail to Load Image!!\n");
 			system("pause");
 			continue;
 		}
-		//	if( (img = cvLoadImage(
-		////		"airplane.jpg"
-		////		"baboon.jpg"
-		////		"color.jpg"
-		////		"fruits.jpg"
-		//        "balloons.png"
-		//// 		"lena.jpg"
-		////		"sailboats.png"
-		//		),1) ==NULL )//加载待处理的图像
-		//	{
-		//		printf("Fail to load Image!");	
-		//		exit(0);
-		//	}
-
 		timeCntBegin = clock();
-
-		GlobalImageSize = cvGetSize(img);
-		pyrSize.height = GlobalImageSize.height;
-		pyrSize.width = GlobalImageSize.width;
+		pyrSize.height = vam.GetSize().height;
+		pyrSize.width = vam.GetSize().width;
 
 		for(i=0;i<=8;i++)
 		{
