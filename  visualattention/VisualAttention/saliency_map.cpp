@@ -39,6 +39,25 @@ void VAMToolbox::Release()
 	ReleaseBatch(&m_ppIntPyr, m_numOfPyrLevel);
 }
 
+IplImage* VAMToolbox::LoadImage(char* path)
+{
+	IplImage* img = cvLoadImage(path);
+	if(img == NULL){
+		return NULL;
+	}
+	LoadImage(img);
+	return img;
+}
+
+void VAMToolbox::LoadImage(IplImage* img)
+{
+	if(m_pOriginImg != NULL){
+		cvReleaseImage(&m_pOriginImg);
+	}
+	m_pOriginImg = cvCreateImage(cvGetSize(img), IPL_DEPTH_32F, img->nChannels);
+	cvConvert(img, m_pOriginImg);
+}
+
 /**
  * 获取显著图
  * @param 
@@ -46,11 +65,14 @@ void VAMToolbox::Release()
  */
 IplImage* VAMToolbox::GetSaliencyMap(IplImage* pSrcImg)
 {
+	if(pSrcImg != NULL){
+		LoadImage(pSrcImg);
+	}else if(m_pOriginImg == NULL){
+		return NULL;
+	}
 	CvMat *pIntMap, *pColMap, *pOriMap, *pDstMap;
-	m_pOriginImg = cvCreateImage(cvGetSize(pSrcImg), IPL_DEPTH_32F, pSrcImg->nChannels);
-	cvConvert(pSrcImg, m_pOriginImg);
-	BuildImgPyr();
 
+	BuildImgPyr();
 	pIntMap = GetIntMap();
 	pColMap = GetColMap();
 	pOriMap = GetOriMap();
@@ -59,13 +81,74 @@ IplImage* VAMToolbox::GetSaliencyMap(IplImage* pSrcImg)
 	cvAddWeighted(pIntMap, m_featWeight.val[0], pColMap, m_featWeight.val[1], 0, pDstMap);
 	cvAddWeighted(pOriMap, m_featWeight.val[2], pDstMap, 1.0, 0, pDstMap);
 
-	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(pSrcImg).height, cvGetSize(pSrcImg).width, CV_32FC1);
+	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(m_pOriginImg).height, cvGetSize(m_pOriginImg).width, CV_32FC1);
 	cvResize(pDstMap, pDstMap_oriSize, CV_INTER_LINEAR);
+	cvNormalize(pDstMap_oriSize, pDstMap_oriSize, 1.0, 0.0, CV_MINMAX, NULL);
 	IplImage* pDstImg = MatToImage(pDstMap_oriSize);
 
 	cvReleaseMat(&pIntMap);
 	cvReleaseMat(&pColMap);
 	cvReleaseMat(&pOriMap);
+	//cvReleaseMat(&pDstMap_oriSize);
+	return pDstImg;
+}
+
+IplImage* VAMToolbox::GetSaliencyMapOfIntensity(IplImage* pSrcImg)
+{
+	if(pSrcImg != NULL){
+		LoadImage(pSrcImg);
+	}else if(m_pOriginImg == NULL){
+		return NULL;
+	}
+	CvMat *pMap;
+	BuildImgPyr();
+	pMap = GetIntMap();
+
+	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(m_pOriginImg).height, cvGetSize(m_pOriginImg).width, CV_32FC1);
+	cvResize(pMap, pDstMap_oriSize, CV_INTER_LINEAR);
+	cvNormalize(pDstMap_oriSize, pDstMap_oriSize, 1.0, 0.0, CV_MINMAX, NULL);
+	IplImage* pDstImg = MatToImage(pDstMap_oriSize);
+	cvReleaseMat(&pMap);
+	//cvReleaseMat(&pDstMap_oriSize);
+	return pDstImg;
+}
+
+IplImage* VAMToolbox::GetSaliencyMapOfColor(IplImage* pSrcImg)
+{
+	if(pSrcImg != NULL){
+		LoadImage(pSrcImg);
+	}else if(m_pOriginImg == NULL){
+		return NULL;
+	}
+	CvMat *pMap;
+	BuildImgPyr();
+	pMap = GetColMap();
+
+	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(m_pOriginImg).height, cvGetSize(m_pOriginImg).width, CV_32FC1);
+	cvResize(pMap, pDstMap_oriSize, CV_INTER_LINEAR);
+	cvNormalize(pDstMap_oriSize, pDstMap_oriSize, 1.0, 0.0, CV_MINMAX, NULL);
+	IplImage* pDstImg = MatToImage(pDstMap_oriSize);
+	cvReleaseMat(&pMap);
+	//cvReleaseMat(&pDstMap_oriSize);
+	return pDstImg;
+}
+
+IplImage* VAMToolbox::GetSaliencyMapOfOrientation(IplImage* pSrcImg)
+{
+	if(pSrcImg != NULL){
+		LoadImage(pSrcImg);
+	}else if(m_pOriginImg == NULL){
+		return NULL;
+	}
+	CvMat *pMap;
+	BuildImgPyr();
+	pMap = GetOriMap();
+
+	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(m_pOriginImg).height, cvGetSize(m_pOriginImg).width, CV_32FC1);
+	cvResize(pMap, pDstMap_oriSize, CV_INTER_LINEAR);
+	cvNormalize(pDstMap_oriSize, pDstMap_oriSize, 1.0, 0.0, CV_MINMAX, NULL);
+	IplImage* pDstImg = MatToImage(pDstMap_oriSize);
+	cvReleaseMat(&pMap);
 	//cvReleaseMat(&pDstMap_oriSize);
 	return pDstImg;
 }
@@ -80,7 +163,6 @@ CvMat* VAMToolbox::GetIntMap()
 	int numOfMaps;
 	CvMat** ppIntFeatMap;
 	CvMat *pTempMat, *pSumMat;
-
 	BuildIntPyr();
 	ppIntFeatMap = CalcIntFeatMap(m_ppIntPyr, &numOfMaps);
 	
@@ -198,11 +280,10 @@ void VAMToolbox::GetVisualPath()
 
 void VAMToolbox::BuildImgPyr()
 {
+	assert(m_pOriginImg != NULL);
 	m_ppImgPyr = (CvMat**)calloc(m_numOfPyrLevel, sizeof(CvMat*));
 	assert(m_ppImgPyr != NULL);
 
-	//Convert the image to float if the input image is not  
-	
 	//The first level of pyramid is origin image
 	m_ppImgPyr[0] = cvCreateMatHeader(m_pOriginImg->height, m_pOriginImg->width, CV_32FC3);
 	assert(m_ppImgPyr[0] != NULL);
@@ -219,6 +300,9 @@ void VAMToolbox::BuildImgPyr()
 
 CvMat** VAMToolbox::BuildIntPyr()
 {
+	if(m_ppImgPyr == NULL){
+		BuildImgPyr();
+	}
 	m_ppIntPyr = (CvMat**)calloc(m_numOfPyrLevel, sizeof(CvMat*));
 	assert(m_ppIntPyr != NULL);
 	for(int i=0; i < m_numOfPyrLevel; i++)  {
@@ -499,6 +583,7 @@ void VAMToolbox::VAMNormalize(CvMat* src, CvMat* dst)
 {
 	switch(m_typeOfVAMNormalize){
 		case VAM_NAVIE_SUM:
+			cvNormalize(src, dst, 1.0, 0.0, CV_MINMAX, NULL);
 			break;
 		case VAM_LINEAR_COMBINATIOIN:
 			break;
@@ -508,7 +593,7 @@ void VAMToolbox::VAMNormalize(CvMat* src, CvMat* dst)
 		case VAM_ITERATIVE_LOCALIZED_INTERACTIONS:
 			break;
 		default:
-				break;
+			break;
 	}
 }
 
@@ -613,16 +698,51 @@ void VAMToolbox::TrunDoGConv(CvMat *src,CvMat *dst,CvMat *T)
 //用全局的非线性放大法进行图像的正规化操作
 void VAMToolbox::NonLinearAmp(CvMat *src,CvMat *dst)
 {
-	CvScalar avg;
-	double max, parm;
-	cvMinMaxLoc(src, NULL, &max, NULL, NULL, NULL);
-	avg = cvAvg(src, NULL);
-	cvNormalize(src, src, 0, 1, CV_MINMAX, NULL);
-	parm = (max - avg.val[0]) * (max - avg.val[0]);
-	cvScale(src, dst, parm, 0);
-	cvNormalize(dst, dst, 0, 1, CV_MINMAX, NULL);
+	int num;
+	double avg, threshold = 0.1;
+	cvNormalize(src, dst, 1.0, 0.0, CV_MINMAX, NULL);
+	FindLocalMaxima(dst, threshold, &num, &avg);
+	
+	if(num > 1){
+		double parm = (1.0 - avg) * (1.0 - avg);
+		cvScale(dst, dst, parm, 0);
+	}
 }
 
+void VAMToolbox::FindLocalMaxima(CvMat* src, double threshold, int* num, double* avg)
+{
+	double sum = 0.0;
+	double val, temp;
+	int lmaxCnt = 0;
+	int i, j, m, n;
+	bool flag = false;
+	//ignore the pixel at boarder
+	for(i=1; i < src->rows-1; i++){
+		for(j=1; j < src->cols-1; j++){
+			flag = true;
+			val = cvmGet(src, i, j);
+			if(val < threshold){
+				continue;
+			}
+			for(m=-1; flag && m <= 1; m++){ //compare with the neighbor
+				for(n=-1; flag && n <= 1; n++){
+					temp = cvmGet(src, i+m, j+n);
+					if(m !=0 && n != 0 && val < temp){
+						flag = false;
+					}
+					
+				}
+			}
+			if(flag){
+				lmaxCnt++;
+				sum += val;
+				j++;  //the next pixel is absolutely is not maxima 
+			}
+		}
+	}
+	*avg = sum/lmaxCnt;
+	*num = lmaxCnt;
+}
 //------------------------------------------------------------------------------------------------------
 //The Gabor function generates a Gabor filter with the selected index 's' and 'n' (scale and orientation, 
 //respectively) from a Gabor filter bank. This filter bank is designed by giving the range of spatial 

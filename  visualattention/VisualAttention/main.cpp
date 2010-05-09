@@ -11,7 +11,7 @@ void TestInBatch();
 
 int main()
 {
-	TestGetSaliencyMap();
+	TestInBatch();
 	return 0;
 }
 
@@ -20,8 +20,11 @@ void TestGetSaliencyMap()
 	VAMToolbox vam;
 	IplImage *pSrcImg, *pSaliencyMap;
 	clock_t timeBegin, timeEnd;
-	char* imgName = "sailboats.png";
-	pSrcImg = cvLoadImage(imgName);
+	char* imgName;
+	//imgName = "sailboats.png";
+	//imgName = "horse.jpg";
+	imgName = "faces.png";
+	pSrcImg = vam.LoadImage(imgName);
 	if(pSrcImg == NULL){
 		printf("\n>>>>Fail to Load Image: %s!!\n", imgName);
 		system("pause");
@@ -30,8 +33,10 @@ void TestGetSaliencyMap()
 	timeBegin = clock();
 	pSaliencyMap = vam.GetSaliencyMap(pSrcImg);
 	timeEnd = clock();
-	printf("\nThe running time is:%f (ms)", timeEnd - timeBegin);
-
+	printf("\nThe running time is:%.2f sec.", (timeEnd - timeBegin)/(double)CLK_TCK);
+	
+	cvNamedWindow("Origin Image", CV_WINDOW_AUTOSIZE);
+	cvShowImage("Origin Image", pSrcImg);
 	cvNamedWindow("Saliency Map",CV_WINDOW_AUTOSIZE);
 	cvShowImage("Saliency Map", pSaliencyMap);
 	cvWaitKey(0);
@@ -52,7 +57,7 @@ void TestInBatch()
 		printf("\nPlease type the image name,then you will get the saliency map.\n");
 		printf("Image Name:  ");
 		scanf("%s",imgName);
-		pSrcImg = cvLoadImage(imgName);
+		pSrcImg = vam.LoadImage(imgName);
 		if(pSrcImg == NULL){
 			printf("\n>>>>Fail to Load Image: %s!!\n", imgName);
 			system("pause");
@@ -61,13 +66,19 @@ void TestInBatch()
 		timeBegin = clock();
 		pSaliencyMap = vam.GetSaliencyMap(pSrcImg);
 		timeEnd = clock();
-		printf("\nThe running time is:%f (ms)", timeEnd - timeBegin);
+		printf("\nThe running time is:%.2f sec.", (timeEnd - timeBegin)/(double)CLK_TCK);
 
+		cvNamedWindow("Origin Image", CV_WINDOW_AUTOSIZE);
+		cvShowImage("Origin Image", pSrcImg);
 		cvNamedWindow("Saliency Map",CV_WINDOW_AUTOSIZE);
-		cvShowImage("Saliency Map",pSaliencyMap);
-		cvWaitKey(0);
+		cvShowImage("Saliency Map", pSaliencyMap);
+		int k = cvWaitKey(0);
+		if(k == 27){ //Esc
+			return;
+		}
 		cvDestroyAllWindows();
-		cvReleaseImage(&pSaliencyMap);
+		//cvReleaseImage(&pSaliencyMap);
 		cvReleaseImage(&pSrcImg);
+		vam.Release();
 	}
 }

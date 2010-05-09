@@ -24,34 +24,41 @@ class VAMToolbox
 public:
 	VAMToolbox();
 	~VAMToolbox();
+	
+	/**
+	 * 载入图像
+	 * @param path 图像文件的路径
+	 */
+	IplImage* LoadImage(char* path);
+	void LoadImage(IplImage* img);
 
 	/**
 	 * 获取显著图
 	 * @param
 	 * @return 失败返回NULL
 	 */
-	IplImage* GetSaliencyMap(IplImage* pSrcImg);
+	IplImage* GetSaliencyMap(IplImage* pSrcImg = NULL);
 
 	/**
 	 * 获取强度特征的显著图
 	 * @param
 	 * @return 失败返回NULL
 	 */
-	IplImage* GetSaliencyMapOfIntensity();
+	IplImage* GetSaliencyMapOfIntensity(IplImage* pSrcImg = NULL);
 
 	/**
 	 * 获取颜色特征的显著图
 	 * @param
 	 * @return 失败返回NULL
 	 */
-	IplImage* GetSaliencyMapOfColor();
+	IplImage* GetSaliencyMapOfColor(IplImage* pSrcImg = NULL);
 
 	/**
 	 * 获取方向特征的显著图
 	 * @param
 	 * @return 失败返回NULL
 	 */
-	IplImage* GetSaliencyMapOfOrientation();
+	IplImage* GetSaliencyMapOfOrientation(IplImage* pSrcImg = NULL);
 
 
 	/**
@@ -97,6 +104,8 @@ private:
 	void NonLinearAmp(CvMat *src,CvMat *dst);
 	void IterativeNorm(CvMat *src,CvMat *dst,int nIteration);
 	void TrunDoGConv(CvMat *src,CvMat *dst,CvMat *T);
+
+	void FindLocalMaxima(CvMat* src, double threshold, int* num, double* avg);
 
 	/**
 	 *  Function of gabor filter
