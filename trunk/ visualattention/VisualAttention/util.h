@@ -1,3 +1,4 @@
+
 #ifndef _VISUAL_ATTENTION_UTIL_
 #define _VISUAL_ATTENTION_UTIL_
 
@@ -7,13 +8,8 @@
 #include <highgui.h>
 using namespace std;
 
-void DispMat(CvMat	*matImage);
-void DispDoubleMat(CvMat *mat1,CvMat *mat2);
-void PrintMatData(CvMat *mat,char* msg);
-void SimDispMat(CvMat *matImage);
-void DispImage(IplImage *img);
-
-void CvSizeCopy(CvSize* pDst, const CvSize* pSrc);
 IplImage* MatToImage(CvMat* mat);
+void Clamp(CvMat *src,CvMat *dst);
+void ReleaseBatchMat(CvMat*** mat, int numOfMats);
 
 #endif
