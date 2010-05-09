@@ -10,6 +10,7 @@ using namespace std;
 
 IplImage* MatToImage(CvMat* mat);
 void Clamp(CvMat *src,CvMat *dst);
-void ReleaseBatchMat(CvMat*** mat, int numOfMats);
+void ReleaseBatch(CvMat*** mat, int numOfMats);
+void ReleaseBatch(CvMat**** mat, int numOfMats);
 
 #endif
