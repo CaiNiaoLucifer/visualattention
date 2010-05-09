@@ -1,3 +1,9 @@
+/**
+ * Itti&Koch的注意力模型的实现
+ * 作者：袁宇，杨帆，侯贺曦
+ * 时间：2010-05-01
+ * 备注：
+ */
 
 #ifndef _VISUAL_ATTENTION_SALIENCY_MAP_
 #define _VISUAL_ATTENTION_SALIENCY_MAP_
