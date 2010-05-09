@@ -20,8 +20,6 @@ VAMToolbox::VAMToolbox()
 	m_pOriginImg = NULL;
 	m_ppImgPyr = NULL;
 	m_ppIntPyr = NULL;
-	m_ppColPyr = NULL;
-	m_ppOriPyr = NULL;
 	m_pIntMap = NULL;
 	m_pColorMap = NULL;
 	m_pOriMap = NULL;
@@ -37,10 +35,8 @@ void VAMToolbox::Release()
 	cvReleaseMat(&m_pIntMap);
 	cvReleaseMat(&m_pColorMap);
 	cvReleaseMat(&m_pOriMap);
-	ReleaseBatchMat(&m_ppImgPyr, m_numOfPyrLevel);
-	ReleaseBatchMat(&m_ppIntPyr, m_numOfPyrLevel);
-	ReleaseBatchMat(&m_ppColPyr, m_numOfPyrLevel);
-	ReleaseBatchMat(&m_ppOriPyr, m_numOfPyrLevel);
+	ReleaseBatch(&m_ppImgPyr, m_numOfPyrLevel);
+	ReleaseBatch(&m_ppIntPyr, m_numOfPyrLevel);
 }
 
 /**
@@ -51,7 +47,9 @@ void VAMToolbox::Release()
 IplImage* VAMToolbox::GetSaliencyMap(IplImage* pSrcImg)
 {
 	CvMat *pIntMap, *pColMap, *pOriMap, *pDstMap;
-	m_pOriginImg = pSrcImg;
+	m_pOriginImg = cvCreateImage(cvGetSize(pSrcImg), IPL_DEPTH_32F, pSrcImg->nChannels);
+	cvConvert(pSrcImg, m_pOriginImg);
+	BuildImgPyr();
 
 	pIntMap = GetIntMap();
 	pColMap = GetColMap();
@@ -68,7 +66,7 @@ IplImage* VAMToolbox::GetSaliencyMap(IplImage* pSrcImg)
 	cvReleaseMat(&pIntMap);
 	cvReleaseMat(&pColMap);
 	cvReleaseMat(&pOriMap);
-	cvReleaseMat(&pDstMap_oriSize);
+	//cvReleaseMat(&pDstMap_oriSize);
 	return pDstImg;
 }
 
@@ -88,7 +86,9 @@ CvMat* VAMToolbox::GetIntMap()
 	
 	pTempMat = cvCreateMat(m_ppIntPyr[4]->rows, m_ppIntPyr[4]->cols, CV_32FC1);
 	assert(pTempMat != NULL);
-	pSumMat = cvCloneMat(ppIntFeatMap[0]);
+	pSumMat = cvCreateMat(m_ppIntPyr[4]->rows, m_ppIntPyr[4]->cols, CV_32FC1);
+	assert(pSumMat != NULL);
+	cvResize(ppIntFeatMap[0], pSumMat);
 	for(int i=1; i < numOfMaps; i++){
 		if(ppIntFeatMap[i]->rows == m_ppIntPyr[4]->rows){
 			cvAdd(pSumMat, ppIntFeatMap[i], pSumMat);
@@ -99,15 +99,15 @@ CvMat* VAMToolbox::GetIntMap()
 	}
 	VAMNormalize(pSumMat, pSumMat);
 	cvReleaseMat(&pTempMat);
-	ReleaseBatchMat(&ppIntFeatMap, numOfMaps);
+	ReleaseBatch(&ppIntFeatMap, numOfMaps);
 	return pSumMat;
 }
 
-	/**
-	 * 获取颜色特征的显著图
-	 * @param
-	 * @return 失败返回NULL
-	 */
+/**
+ * 获取颜色特征的显著图
+ * @param
+ * @return 失败返回NULL
+ */
 CvMat* VAMToolbox::GetColMap()
 {
 	int numOfMaps;
@@ -123,7 +123,9 @@ CvMat* VAMToolbox::GetColMap()
 	
 	pTempMat = cvCreateMat(m_ppIntPyr[4]->rows, m_ppIntPyr[4]->cols, CV_32FC1);
 	assert(pTempMat != NULL);
-	pSumMat = cvCloneMat(ppColFeatMap[0]);
+	pSumMat = cvCreateMat(m_ppIntPyr[4]->rows, m_ppIntPyr[4]->cols, CV_32FC1);
+	assert(pSumMat != NULL);
+	cvResize(ppColFeatMap[0], pSumMat);
 	for(int i=1; i<numOfMaps; i++){
 		if(ppColFeatMap[i]->rows == m_ppIntPyr[4]->rows){
 			cvAdd(pSumMat, ppColFeatMap[i], pSumMat);
@@ -134,11 +136,11 @@ CvMat* VAMToolbox::GetColMap()
 	}
 	VAMNormalize(pSumMat, pSumMat);
 	cvReleaseMat(&pTempMat);
-	ReleaseBatchMat(&ppColFeatMap, numOfMaps);
-	ReleaseBatchMat(&Rpyr, m_numOfPyrLevel);
-	ReleaseBatchMat(&Gpyr, m_numOfPyrLevel);
-	ReleaseBatchMat(&Bpyr, m_numOfPyrLevel);
-	ReleaseBatchMat(&Ypyr, m_numOfPyrLevel);
+	ReleaseBatch(&ppColFeatMap, numOfMaps);
+	ReleaseBatch(&Rpyr, m_numOfPyrLevel);
+	ReleaseBatch(&Gpyr, m_numOfPyrLevel);
+	ReleaseBatch(&Bpyr, m_numOfPyrLevel);
+	ReleaseBatch(&Ypyr, m_numOfPyrLevel);
 	return pSumMat;
 }
 
@@ -163,7 +165,9 @@ CvMat* VAMToolbox::GetOriMap()
 
 	pTempMat = cvCreateMat(m_ppIntPyr[4]->rows, m_ppIntPyr[4]->cols, CV_32FC1);
 	assert(pTempMat != NULL);
-	pSumMat = cvCloneMat(ppOriFeatMap[0]);
+	pSumMat = cvCreateMat(m_ppIntPyr[4]->rows, m_ppIntPyr[4]->cols, CV_32FC1);
+	assert(pSumMat != NULL);
+	cvResize(ppOriFeatMap[0], pSumMat);
 	for(int i=1; i<numOfMaps; i++){
 		if(ppOriFeatMap[i]->rows == m_ppIntPyr[4]->rows){
 			cvAdd(pSumMat, ppOriFeatMap[i], pSumMat);
@@ -174,11 +178,11 @@ CvMat* VAMToolbox::GetOriMap()
 	}
 	VAMNormalize(pSumMat, pSumMat);
 	cvReleaseMat(&pTempMat);
-	ReleaseBatchMat(&ppOriFeatMap, numOfMaps);
+	ReleaseBatch(&ppOriFeatMap, numOfMaps);
 	for(int i=0; i<m_numOfOri; i++){
-		ReleaseBatchMat(&pppOriPyr[i], m_numOfPyrLevel);
+		ReleaseBatch(&pppOriPyr[i], m_numOfPyrLevel);
 	}
-	ReleaseBatchMat(&ppOriFeatMap, m_numOfPyrLevel);
+	ReleaseBatch(&pppOriPyr, m_numOfOri);
 	return pSumMat; 
 }
 
@@ -200,7 +204,7 @@ void VAMToolbox::BuildImgPyr()
 	//Convert the image to float if the input image is not  
 	
 	//The first level of pyramid is origin image
-	m_ppImgPyr[0] = cvCreateMat(m_pOriginImg->height, m_pOriginImg->width, CV_32FC3);
+	m_ppImgPyr[0] = cvCreateMatHeader(m_pOriginImg->height, m_pOriginImg->width, CV_32FC3);
 	assert(m_ppImgPyr[0] != NULL);
 	cvGetMat(m_pOriginImg, m_ppImgPyr[0]);
 	CvSize levelSize = cvGetSize(m_pOriginImg);
@@ -209,7 +213,7 @@ void VAMToolbox::BuildImgPyr()
 		levelSize.width  /= 2;
 		m_ppImgPyr[i] = cvCreateMat(levelSize.height, levelSize.width, CV_32FC3);
 		assert(m_ppImgPyr[i] != NULL);
-		cvPyrDown(m_ppImgPyr[i-1], m_ppImgPyr[i], CV_GAUSSIAN_5x5);
+		cvResize(m_ppImgPyr[i-1], m_ppImgPyr[i], CV_INTER_LINEAR);
 	}
 }
 
@@ -217,7 +221,7 @@ CvMat** VAMToolbox::BuildIntPyr()
 {
 	m_ppIntPyr = (CvMat**)calloc(m_numOfPyrLevel, sizeof(CvMat*));
 	assert(m_ppIntPyr != NULL);
-	for(int i=0;i<=8;i++)  {
+	for(int i=0; i < m_numOfPyrLevel; i++)  {
 		m_ppIntPyr[i] = cvCreateMat(m_ppImgPyr[i]->rows, m_ppImgPyr[i]->cols, CV_32FC1);
 		assert(m_ppIntPyr[i] != NULL);
 		cvCvtColor(m_ppImgPyr[i], m_ppIntPyr[i], CV_BGR2GRAY);
@@ -304,10 +308,10 @@ void VAMToolbox::DecoupleHue(CvMat *rMat, CvMat *gMat,CvMat *bMat, CvMat* iMat, 
 
 void VAMToolbox::BuildColPyr(CvMat*** pppRpyr, CvMat*** pppGpyr, CvMat*** pppBpyr, CvMat*** pppYpyr)
 {
-	CvMat** R = *pppRpyr;
-	CvMat** G = *pppGpyr;
-	CvMat** B = *pppBpyr;
-	CvMat** Y = *pppYpyr;
+	CvMat** &R = *pppRpyr;
+	CvMat** &G = *pppGpyr;
+	CvMat** &B = *pppBpyr;
+	CvMat** &Y = *pppYpyr;
 
 	R = (CvMat**)calloc(m_numOfPyrLevel, sizeof(CvMat*));
 	assert(R != NULL);
@@ -320,7 +324,7 @@ void VAMToolbox::BuildColPyr(CvMat*** pppRpyr, CvMat*** pppGpyr, CvMat*** pppBpy
 	
 	int rows, cols;
 	CvMat *r, *g, *b;
-	for(int i=0; i <= m_numOfPyrLevel; i++){
+	for(int i=0; i < m_numOfPyrLevel; i++){
 		rows = m_ppImgPyr[i]->rows;
 		cols = m_ppImgPyr[i]->cols;
 
@@ -354,7 +358,11 @@ CvMat*** VAMToolbox::BuildOriPyr()
 {
 	CvMat*** pppOriPyr = (CvMat***)calloc(m_numOfOri, sizeof(CvMat**));
 	assert(pppOriPyr != NULL);
-	for(int i=0; i <= m_numOfOri; i++){
+	for(int i=0; i < m_numOfPyrLevel; i++){
+		pppOriPyr[i] = (CvMat**)calloc(m_numOfPyrLevel, sizeof(CvMat*));
+		assert(pppOriPyr[i] != NULL);
+	}
+	for(int i=0; i < m_numOfOri; i++){
 		for(int j=0; j < m_numOfPyrLevel; j++){
 			pppOriPyr[i][j] = cvCreateMat(m_ppIntPyr[j]->rows, m_ppIntPyr[j]->cols, CV_32FC1);
 			assert(pppOriPyr[i][j] != NULL);
@@ -455,7 +463,7 @@ CvMat** VAMToolbox::CalcOriFeatMap(CvMat*** pppOriPyr, int *numOfMaps)
 {
 	CvMat** ppOriFeatMap;
 	CvMat *tempMap;
-	int rows, cols;
+	int rows, cols, pos;
 	
 	ppOriFeatMap = (CvMat**)calloc(24, sizeof(CvMat*));
 	assert(ppOriFeatMap != NULL);
@@ -464,17 +472,22 @@ CvMat** VAMToolbox::CalcOriFeatMap(CvMat*** pppOriPyr, int *numOfMaps)
 		rows = pppOriPyr[0][i]->rows;
 		cols = pppOriPyr[0][i]->cols;
 		tempMap = cvCreateMat(rows, cols, CV_32FC1);
+		assert(tempMap != NULL);
 		for(int j=0; j < m_numOfOri; j++){
-			ppOriFeatMap[j*6 + 2*i] = cvCreateMat(rows, cols, CV_32FC1);//I:2-5
+			pos = j*6 + 2*i - 4;
+			ppOriFeatMap[pos] = cvCreateMat(rows, cols, CV_32FC1);//I:2-5
+			assert(ppOriFeatMap[pos] != NULL);
 			cvResize(pppOriPyr[j][i+3], tempMap);
-			cvAbsDiff(pppOriPyr[j][i],  tempMap, ppOriFeatMap[j*6 + 2*i]);
+			cvAbsDiff(pppOriPyr[j][i],  tempMap, ppOriFeatMap[pos]);
 
-			ppOriFeatMap[j*6 + 2*i + 1] = cvCreateMat(rows,cols,CV_32FC1);//I:2-6
+			pos = j*6 + 2*i - 3;
+			ppOriFeatMap[pos] = cvCreateMat(rows, cols, CV_32FC1);//I:2-6
+			assert(ppOriFeatMap[pos] != NULL);
 			cvResize(pppOriPyr[j][i+4], tempMap);
-			cvAbsDiff(pppOriPyr[j][i], tempMap, ppOriFeatMap[j*6 + 2*i + 1]);
+			cvAbsDiff(pppOriPyr[j][i], tempMap, ppOriFeatMap[pos]);
 		}
+		cvReleaseMat(&tempMap);
 	}
-	cvReleaseMat(&tempMap);
 	for(int i=0; i<24; i++){
 		VAMNormalize(ppOriFeatMap[i], ppOriFeatMap[i]);
 	}
@@ -511,8 +524,8 @@ void VAMToolbox::DoGFilter(double exSigma, double exC, double inhSigma, double i
 	inhParm2 = inhC*inhC*inhParm1/CV_PI;
 	width = radius+radius+1;
 
-	for(x=-radius;x<=radius;x++)
-		for(y=-radius;y<=radius;y++)
+	for(x = -radius; x <= radius; x++)
+		for(y = -radius; y <= radius; y++)
 		{
 			test = exParm2*exp(-(x*x+y*y)*exParm1)-inhParm2*exp(-(x*x+y*y)*inhParm1);
 			cvmSet(T,x+radius,y+radius,test);
@@ -579,20 +592,20 @@ void VAMToolbox::TrunDoGConv(CvMat *src,CvMat *dst,CvMat *T)
 			overlapConvSum = 0;
 			for(x=0;x<width;x++)
 			{
-				if(x+xCenter<=radius || x+xCenter>=T->cols+radius)
+				if(x + xCenter <= radius || x + xCenter >= T->cols + radius)
 					continue;
-				for(y=0;y<width;y++)
+				for(y=0; y < width; y++)
 				{
-					if(y+yCenter<=radius || y+yCenter>=T->rows+radius)
+					if(y + yCenter <= radius || y + yCenter >= T->rows+radius)
 						continue;
 					else
 					{
-						overlapDoGSum += cvmGet(T,x,y);
-						overlapConvSum += cvmGet(src,xCenter+x-radius,yCenter+y-radius);
+						overlapDoGSum += cvmGet(T, x, y);
+						overlapConvSum += cvmGet(src, xCenter + x - radius, yCenter + y - radius);
 					}
 				}
 			}
-			cvmSet(dst,yCenter,xCenter,TSum.val[0]*overlapConvSum/overlapDoGSum);	
+			cvmSet(dst, yCenter, xCenter, TSum.val[0] * overlapConvSum / overlapDoGSum);	
 		}
 	}
 }

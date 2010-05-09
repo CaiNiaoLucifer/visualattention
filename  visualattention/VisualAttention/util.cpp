@@ -20,12 +20,12 @@ IplImage* MatToImage(CvMat* mat)
 	return img;
 }
 
-void ReleaseBatchMat(CvMat*** mat, int numOfMats)
+void ReleaseBatch(CvMat*** mat, int numOfMats)
 {
 	if(numOfMats <= 0 || mat == NULL){
 		return;
 	}
-	CvMat** ppm = *mat;
+	CvMat** &ppm = *mat;
 	for(int i=0; i<numOfMats; i++){
 		cvReleaseMat(&ppm[i]);
 	}
@@ -33,6 +33,19 @@ void ReleaseBatchMat(CvMat*** mat, int numOfMats)
 	ppm = NULL;
 }
 
+void ReleaseBatch(CvMat**** mat, int numOfMats)
+{
+	if(numOfMats <= 0 || mat == NULL){
+		return;
+	}
+	CvMat*** &ppm = *mat;
+	for(int i=0; i<numOfMats; i++){
+		free(ppm[i]);
+		ppm[i] = NULL;
+	}
+	//free(*mat);
+	//*mat = NULL;
+}
 //将元素中小于零的部分统一赋为零值。
 void Clamp(CvMat *src,CvMat *dst)
 {

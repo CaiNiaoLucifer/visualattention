@@ -6,12 +6,45 @@
 #include <time.h>
 using namespace std;
 
+void TestGetSaliencyMap();
+void TestInBatch();
+
 int main()
+{
+	TestGetSaliencyMap();
+	return 0;
+}
+
+void TestGetSaliencyMap()
+{
+	VAMToolbox vam;
+	IplImage *pSrcImg, *pSaliencyMap;
+	clock_t timeBegin, timeEnd;
+	char* imgName = "sailboats.png";
+	pSrcImg = cvLoadImage(imgName);
+	if(pSrcImg == NULL){
+		printf("\n>>>>Fail to Load Image: %s!!\n", imgName);
+		system("pause");
+		exit(-1);
+	}
+	timeBegin = clock();
+	pSaliencyMap = vam.GetSaliencyMap(pSrcImg);
+	timeEnd = clock();
+	printf("\nThe running time is:%f (ms)", timeEnd - timeBegin);
+
+	cvNamedWindow("Saliency Map",CV_WINDOW_AUTOSIZE);
+	cvShowImage("Saliency Map", pSaliencyMap);
+	cvWaitKey(0);
+	cvDestroyAllWindows();
+	//cvReleaseImage(&pSaliencyMap);
+	cvReleaseImage(&pSrcImg);
+}
+void TestInBatch()
 {
 	VAMToolbox vam;
 	IplImage *pSrcImg, *pSaliencyMap;
 	char imgName[64];
-	float timeBegin, timeEnd;
+	clock_t timeBegin, timeEnd;
 	printf("*************************************************\n");
 	printf("       Visual Attention Model Test\n");
 	printf("*************************************************\n");
@@ -29,7 +62,7 @@ int main()
 		pSaliencyMap = vam.GetSaliencyMap(pSrcImg);
 		timeEnd = clock();
 		printf("\nThe running time is:%f (ms)", timeEnd - timeBegin);
-		
+
 		cvNamedWindow("Saliency Map",CV_WINDOW_AUTOSIZE);
 		cvShowImage("Saliency Map",pSaliencyMap);
 		cvWaitKey(0);
@@ -37,5 +70,4 @@ int main()
 		cvReleaseImage(&pSaliencyMap);
 		cvReleaseImage(&pSrcImg);
 	}
-	return 0;
 }

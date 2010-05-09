@@ -124,8 +124,6 @@ private:
 	CvMat*		m_pOriMap;	
 	CvMat**		m_ppImgPyr;
 	CvMat**		m_ppIntPyr;		//Intensity Pyramid
-	CvMat**		m_ppColPyr;		//Color Pyramid
-	CvMat**		m_ppOriPyr;		//Orientation Pyramid
 };
 
 #endif
