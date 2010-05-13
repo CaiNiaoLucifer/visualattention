@@ -197,6 +197,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\res\helis.jpg"
+				>
+			</File>
+			<File
 				RelativePath=".\saliency_map.h"
 				>
 			</File>

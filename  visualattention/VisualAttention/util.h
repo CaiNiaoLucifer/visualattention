@@ -12,5 +12,6 @@ IplImage* MatToImage(CvMat* mat);
 void Clamp(CvMat *src,CvMat *dst);
 void ReleaseBatch(CvMat*** mat, int numOfMats);
 void ReleaseBatch(CvMat**** mat, int numOfMats);
+bool CheckNegative(CvMat* src);
 
 #endif

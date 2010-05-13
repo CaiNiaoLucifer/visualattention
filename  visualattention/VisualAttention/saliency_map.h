@@ -103,8 +103,8 @@ private:
 	void VAMNormalize(CvMat* src, CvMat* dst);
 	void NonLinearAmp(CvMat *src,CvMat *dst);
 	void IterativeNorm(CvMat *src,CvMat *dst,int nIteration);
-	void TrunDoGConv(CvMat *src,CvMat *dst,CvMat *T);
-
+	void TrunConv(CvMat *src,CvMat *dst,CvMat *T);
+	CvMat* GetDogFilter(double exSigma, double exC, double inhSigma, double inhC, int radius);
 	void FindLocalMaxima(CvMat* src, double threshold, int* num, double* avg);
 
 	/**
@@ -112,7 +112,6 @@ private:
 	 */
 	void MakeGaborFilter(CvMat *Gr, CvMat *Gi, int s, int n, double Ul, double Uh, int scale, int orientation, int flag);
 	void GaborFilterImage(CvMat *src,CvMat *dst,int scale,int ori);
-	void DoGFilter(double exSigma, double exC, double inhSigma, double inhC, int radius, CvMat *T);
 
 private:
 	int			m_typeOfVAMNormalize;

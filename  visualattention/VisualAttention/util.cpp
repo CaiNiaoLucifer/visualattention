@@ -58,3 +58,15 @@ void Clamp(CvMat *src,CvMat *dst)
 	cvCmpS(tempSrc,0.0,mask,CV_CMP_GE);
 	cvCopy(tempSrc,dst,mask);
 }
+
+bool CheckNegative(CvMat* src)
+{
+	for(int r=0; r<src->rows; r++){
+		for(int c=0; c<src->cols; c++){
+			if(cvmGet(src, r, c) < 0){
+				return true;
+			}
+		}
+	}
+	return false;
+}
