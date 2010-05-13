@@ -3,7 +3,7 @@
 
 VAMToolbox::VAMToolbox()
 {
-	m_typeOfVAMNormalize = VAM_NON_LINEAR_AMPLIFICATION;
+	m_typeOfVAMNormalize = VAM_ITERATIVE_LOCALIZED_INTERACTIONS;
 	
 	m_numOfPyrLevel = 9;	
 	m_numOfOri = 4;		
@@ -54,8 +54,26 @@ void VAMToolbox::LoadImage(IplImage* img)
 	if(m_pOriginImg != NULL){
 		cvReleaseImage(&m_pOriginImg);
 	}
-	m_pOriginImg = cvCreateImage(cvGetSize(img), IPL_DEPTH_32F, img->nChannels);
-	cvConvert(img, m_pOriginImg);
+	CvSize imgSize = cvGetSize(img);
+	int minLen = cvCeil(pow(2.0, m_numOfPyrLevel-1));
+	int minSrc = min(img->width, img->height);
+	if(minSrc < minLen){
+		double zoom = (double)minLen / (double)minSrc;
+		imgSize.height = cvCeil(imgSize.height * zoom);
+		imgSize.width = cvCeil(imgSize.width * zoom);
+		IplImage* zoomImg = cvCreateImage(imgSize, img->depth, img->nChannels);
+		assert(zoomImg != NULL);
+		cvResize(img, zoomImg);
+		m_pOriginImg = cvCreateImage(imgSize, IPL_DEPTH_32F, img->nChannels);
+		assert(m_pOriginImg != NULL);
+		cvConvert(zoomImg, m_pOriginImg);
+		cvReleaseImage(&zoomImg);
+	}else{
+		m_pOriginImg = cvCreateImage(imgSize, IPL_DEPTH_32F, img->nChannels);
+		assert(m_pOriginImg != NULL);
+		cvConvert(img, m_pOriginImg);
+	}
+
 }
 
 /**
@@ -591,6 +609,7 @@ void VAMToolbox::VAMNormalize(CvMat* src, CvMat* dst)
 			NonLinearAmp(src, dst);
 			break;
 		case VAM_ITERATIVE_LOCALIZED_INTERACTIONS:
+			IterativeNorm(src, dst, 6);
 			break;
 		default:
 			break;
@@ -598,40 +617,34 @@ void VAMToolbox::VAMNormalize(CvMat* src, CvMat* dst)
 }
 
 //DoGFilter
-void VAMToolbox::DoGFilter(double exSigma, double exC, double inhSigma, double inhC, int radius, CvMat *T)
+CvMat* VAMToolbox::GetDogFilter(double exSigma, double exC, double inhSigma, double inhC, int radius)
 {
-	//关于二维数组作为函数参数进行传递：http://ziji.yo2.cn/archives/628720
-	int x,y,width;
-	double exParm1,exParm2,inhParm1,inhParm2,test;
-	exParm1 = 0.5/(exSigma*exSigma);
-	inhParm1 = 0.5/(inhSigma*inhSigma);
-	exParm2 = exC*exC*exParm1/CV_PI;
-	inhParm2 = inhC*inhC*inhParm1/CV_PI;
-	width = radius+radius+1;
+	int x, y, width;
+	double exParm1, exParm2, inParm1, inParm2, val;
 
-	for(x = -radius; x <= radius; x++)
-		for(y = -radius; y <= radius; y++)
-		{
-			test = exParm2*exp(-(x*x+y*y)*exParm1)-inhParm2*exp(-(x*x+y*y)*inhParm1);
-			cvmSet(T,x+radius,y+radius,test);
-			//cvmSet(T,x+radius,y+radius,exParm2*exp(-(x*x+y*y)*exParm1)-inhParm2*exp(-(x*x+y*y)*inhParm1));
+	exParm1 = 0.5 / (exSigma*exSigma);
+	inParm1 = 0.5 / (inhSigma*inhSigma);
+	exParm2 = exC * exC * exParm1 / CV_PI;
+	inParm2 = inhC * inhC * inParm1 / CV_PI;
+	
+	width = radius+radius+1;
+	CvMat *T = cvCreateMat(width, width, CV_32FC1);
+	assert(T != NULL);
+	for(x = -radius; x <= radius; x++){
+		for(y = -radius; y <= radius; y++){
+			val = exParm2 * exp(-(x*x + y*y) * exParm1) 
+				- inParm2 * exp(-(x*x + y*y) * inParm1);
+			cvmSet(T, x + radius, y + radius, val);
 		}
+	}
+	return T;
 }
 //Iterative Localized Interations
-void VAMToolbox::IterativeNorm(CvMat *src,CvMat *dst,int nIteration)
+void VAMToolbox::IterativeNorm(CvMat *src, CvMat *dst, int nIteration)
 {
-	int sz,width,radius,i;
-	double exSigma,inhSigma,exC,inhC;
-	CvMat *T;
-	CvScalar TSum;
+	int sz, width, radius, i;
+	double exSigma, inhSigma, exC, inhC;
 	CvScalar constInh;
-	double overlapDoGSum = 0.0, overlapConvSum = 0.0;
-
-	CvMat *tempSrc,*tempMat1,*tempMat2;
-	tempSrc = cvCreateMat(src->rows,src->cols,CV_32FC1);
-	tempMat1 = cvCreateMat(src->rows,src->cols,CV_32FC1);
-	tempMat2 = cvCreateMat(src->rows,src->cols,CV_32FC1);
-	cvConvert(src,tempSrc);
 
 	sz = min(src->rows,src->cols);
 	exSigma = 0.02*sz;
@@ -640,59 +653,86 @@ void VAMToolbox::IterativeNorm(CvMat *src,CvMat *dst,int nIteration)
 	inhC = 1.5;
 	constInh.val[0] = 0.02;
 	radius = sz/8;
+	if(radius <= 0){
+		radius = 1;
+	}else if(radius > 8){
+		radius = 8;
+	}
 	width = radius*2+1;
 
-	T = cvCreateMat(width,width,CV_32FC1);
-	DoGFilter(exSigma,exC,inhSigma,inhC,radius,T);
-	TSum=cvSum(T);
-
-
-	for(i=0;i<nIteration;i++)
-	{
-		cvNormalize(tempSrc,tempSrc,1,0,CV_MINMAX,NULL);
-		TrunDoGConv(tempSrc,dst,T);
-		cvAdd(tempSrc,dst,tempMat1);
-		cvSubS(tempMat1,constInh,dst);
-		Clamp(dst,dst);
-		cvCopy(dst,tempSrc);
+	CvMat *T = GetDogFilter(exSigma, exC, inhSigma, inhC, radius);
+	CvMat *pResultMat = cvCloneMat(src);
+	assert(pResultMat != NULL);
+	cvNormalize(pResultMat, pResultMat, 1.0, 0.0, CV_MINMAX, NULL);
+	CvMat *pTempMat = cvCreateMat(src->rows, src->cols, src->type);
+	assert(pTempMat != NULL);
+	for(i=0; i < nIteration; i++){
+		cvCopy(pResultMat, pTempMat, NULL);
+		TrunConv(pTempMat, pResultMat, T);
+		cvAdd(pTempMat, pResultMat, pResultMat);
+		cvSubS(pResultMat, constInh, pResultMat);
+		cvThreshold(pResultMat, pResultMat, 0.0, 0, CV_THRESH_TOZERO);
 	}
-	cvNormalize(dst,dst,1,0,CV_MINMAX,NULL);
+	cvCopy(pResultMat, dst, NULL);
+	cvReleaseMat(&pResultMat);
 }
-//Trucated DoG convolution
-void VAMToolbox::TrunDoGConv(CvMat *src,CvMat *dst,CvMat *T)
+
+//Truncated Filter
+void VAMToolbox::TrunConv(CvMat *src, CvMat *dst, CvMat *T)
 {
-	int xCenter,yCenter,x,y,width,radius;
-	double overlapDoGSum = 0.0, overlapConvSum = 0.0;
-	CvScalar TSum;
-	TSum = cvSum(T);
-
-	width = T->rows;
-	radius = (width-1)/2;
-
-	for(xCenter=0;xCenter<src->cols;xCenter++)
-	{
-		for(yCenter=0;yCenter<src->rows;yCenter++)
-		{	
-			overlapDoGSum = 0;
-			overlapConvSum = 0;
-			for(x=0;x<width;x++)
-			{
-				if(x + xCenter <= radius || x + xCenter >= T->cols + radius)
-					continue;
-				for(y=0; y < width; y++)
-				{
-					if(y + yCenter <= radius || y + yCenter >= T->rows+radius)
-						continue;
-					else
-					{
-						overlapDoGSum += cvmGet(T, x, y);
-						overlapConvSum += cvmGet(src, xCenter + x - radius, yCenter + y - radius);
-					}
-				}
-			}
-			cvmSet(dst, yCenter, xCenter, TSum.val[0] * overlapConvSum / overlapDoGSum);	
+	assert(src != NULL && dst != NULL && T != NULL);
+	cvFilter2D(src, dst, T);
+	
+	int r, c, radius;
+	radius = T->rows;
+	for(r=0; r < radius; r++){
+		for(c=0; c  < radius; c++){
+			cvmSet(dst, r, c, 0.0);
+		}
+		for(c= src->cols - radius; c  < src->cols; c++){
+			cvmSet(dst, r, c, 0.0);
 		}
 	}
+
+	for(r=src->rows - radius; r < src->rows; r++){
+		for(c=0; c  <radius; c++){
+			cvmSet(dst, r, c, 0.0);
+		}
+		for(c= src->cols - radius; c  < src->cols; c++){
+			cvmSet(dst, r, c, 0.0);
+		}
+	}
+
+	/*int rCen, cCen, r, c, radius;
+	double TSum, overlapTSum, overlapMulSum;
+	
+	CvScalar tempTSum;
+	tempTSum = cvSum(T);
+	TSum = tempTSum.val[0];
+
+	radius = (T->rows - 1) / 2;
+	CvMat *pResultMat = cvCreateMat(src->rows, src->cols, src->type);
+	assert(pResultMat != NULL);
+	for(rCen=0; rCen < radius; rCen++){
+		for(cCen=0; cCen < src->cols; cCen++){	
+			overlapTSum = 0.0;
+			overlapMulSum = 0.0;
+			for(r = -radius; r <= radius; r++){
+				for(c = -radius; c<= radius; c++){
+					if(r + rCen < 0 || r + rCen >= src->rows
+						|| c + cCen < 0 || c + cCen >= src->cols){
+							continue;
+					}
+					overlapTSum += cvmGet(T, r + radius, c + radius);
+					overlapMulSum += cvmGet(T, r + radius, c+ radius)
+						* cvmGet(src, r + rCen, c + cCen);
+				}
+			}
+			cvmSet(pResultMat, rCen, cCen, TSum * overlapMulSum / overlapTSum);	
+		}
+	}
+	cvCopy(pResultMat, dst, NULL);
+	cvReleaseMat(&pResultMat);*/
 }
 
 //用全局的非线性放大法进行图像的正规化操作
