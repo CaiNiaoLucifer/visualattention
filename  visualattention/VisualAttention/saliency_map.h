@@ -18,6 +18,7 @@
 using namespace std;
 
 #define _VAM_DEBUG_
+#define _VAM_SHOW_ORI_FEATMAP_
 
 class VAMToolbox
 {
@@ -104,6 +105,7 @@ private:
 	void NonLinearAmp(CvMat *src,CvMat *dst);
 	void IterativeNorm(CvMat *src,CvMat *dst,int nIteration);
 	void TrunConv(CvMat *src,CvMat *dst,CvMat *T);
+	void TrunConvInRange(CvMat* src, CvMat* dst, CvMat* T, int rowStart, int rowEnd, int colStart, int colEnd);
 	CvMat* GetDogFilter(double exSigma, double exC, double inhSigma, double inhC, int radius);
 	void FindLocalMaxima(CvMat* src, double threshold, int* num, double* avg);
 
@@ -132,6 +134,9 @@ private:
 	CvMat*		m_pOriMap;	
 	CvMat**		m_ppImgPyr;
 	CvMat**		m_ppIntPyr;		//Intensity Pyramid
+	CvMat*		m_pSaliencyMapOfInt;
+	CvMat*		m_pSaliencyMapOfCol;
+	CvMat*		m_pSaliencyMapOfOri;
 };
 
 #endif

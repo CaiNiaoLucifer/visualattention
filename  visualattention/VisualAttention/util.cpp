@@ -70,3 +70,52 @@ bool CheckNegative(CvMat* src)
 	}
 	return false;
 }
+
+void DispMat(CvMat* mat)
+{
+	IplImage* img = MatToImage(mat);
+	cvNamedWindow("Image Show");
+	cvShowImage("Image Show", img);
+	cvWaitKey(0);
+	cvDestroyWindow("Image Show");
+	cvReleaseImageHeader(&img);
+}
+
+void SetValInRectRange(CvMat* mat, double val, int x, int y, int width, int height){
+	for(int i = x; i < x + width; i++){
+		for(int j = y; j < y + height; j++){
+			cvmSet(mat, j, i, val);
+		}
+	}
+}
+
+IplImage* GetSpotlightImage(IplImage* srcImage, IplImage* salMap)
+{
+	IplImage* pSrcFloatImage = GetFloatImage(srcImage);
+	cvDilate(salMap, salMap, NULL, 3);
+	cvNormalize(salMap, salMap, 1.0, 0, CV_MINMAX, NULL);
+
+	IplImage* tempSalImage = cvCreateImage(cvGetSize(srcImage), IPL_DEPTH_32F, srcImage->nChannels);
+	for(int c=0; c < pSrcFloatImage->nChannels; c++){
+		cvSetImageCOI(tempSalImage, c);
+		cvSetImageCOI(salMap, 0);
+		cvCopy(salMap, tempSalImage);
+	}
+	IplImage* dstImage = cvCloneImage(pSrcFloatImage);
+	cvMul(pSrcFloatImage, tempSalImage, dstImage, 1);
+	return dstImage;
+}
+
+IplImage* GetFloatImage(IplImage* srcImage)
+{
+	IplImage* dstImage = cvCreateImage(cvGetSize(srcImage), IPL_DEPTH_32F ,srcImage->nChannels);
+	if(srcImage->depth == IPL_DEPTH_8U){
+		cvConvertScale(srcImage, dstImage, 1/255.0);
+	}else if(srcImage->depth == IPL_DEPTH_32F){
+		cvCopyImage(srcImage, dstImage);
+	}else{
+		printf("\nIn GetFloatImage(), the depth of input image is not IPL_DEPTH_8U!");
+		return NULL;
+	}
+	return dstImage;	
+}

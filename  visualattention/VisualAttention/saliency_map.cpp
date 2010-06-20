@@ -3,7 +3,7 @@
 
 VAMToolbox::VAMToolbox()
 {
-	m_typeOfVAMNormalize = VAM_ITERATIVE_LOCALIZED_INTERACTIONS;
+	m_typeOfVAMNormalize = VAM_ITERATIVE;
 	
 	m_numOfPyrLevel = 9;	
 	m_numOfOri = 4;		
@@ -23,6 +23,9 @@ VAMToolbox::VAMToolbox()
 	m_pIntMap = NULL;
 	m_pColorMap = NULL;
 	m_pOriMap = NULL;
+	m_pSaliencyMapOfInt = NULL;
+	m_pSaliencyMapOfCol = NULL;
+	m_pSaliencyMapOfOri = NULL;
 }
 
 VAMToolbox::~VAMToolbox()
@@ -37,6 +40,9 @@ void VAMToolbox::Release()
 	cvReleaseMat(&m_pOriMap);
 	ReleaseBatch(&m_ppImgPyr, m_numOfPyrLevel);
 	ReleaseBatch(&m_ppIntPyr, m_numOfPyrLevel);
+	cvReleaseMatHeader(&m_pSaliencyMapOfInt);
+	cvReleaseMatHeader(&m_pSaliencyMapOfCol);
+	cvReleaseMatHeader(&m_pSaliencyMapOfOri);
 }
 
 IplImage* VAMToolbox::LoadImage(char* path)
@@ -66,14 +72,13 @@ void VAMToolbox::LoadImage(IplImage* img)
 		cvResize(img, zoomImg);
 		m_pOriginImg = cvCreateImage(imgSize, IPL_DEPTH_32F, img->nChannels);
 		assert(m_pOriginImg != NULL);
-		cvConvert(zoomImg, m_pOriginImg);
+		cvConvertScale(zoomImg, m_pOriginImg, 1.0/255.0);
 		cvReleaseImage(&zoomImg);
 	}else{
 		m_pOriginImg = cvCreateImage(imgSize, IPL_DEPTH_32F, img->nChannels);
 		assert(m_pOriginImg != NULL);
-		cvConvert(img, m_pOriginImg);
+		cvConvertScale(img, m_pOriginImg, 1.0/255.0);
 	}
-
 }
 
 /**
@@ -88,86 +93,67 @@ IplImage* VAMToolbox::GetSaliencyMap(IplImage* pSrcImg)
 	}else if(m_pOriginImg == NULL){
 		return NULL;
 	}
-	CvMat *pIntMap, *pColMap, *pOriMap, *pDstMap;
+	CvMat *pDstMap;
 
 	BuildImgPyr();
-	pIntMap = GetIntMap();
-	pColMap = GetColMap();
-	pOriMap = GetOriMap();
+	m_pSaliencyMapOfInt = GetIntMap();
+	m_pSaliencyMapOfCol = GetColMap();
+	m_pSaliencyMapOfOri = GetOriMap();
 
-	pDstMap = cvCreateMat(pIntMap->rows, pIntMap->cols, CV_32FC1);
-	cvAddWeighted(pIntMap, m_featWeight.val[0], pColMap, m_featWeight.val[1], 0, pDstMap);
-	cvAddWeighted(pOriMap, m_featWeight.val[2], pDstMap, 1.0, 0, pDstMap);
+	pDstMap = cvCreateMat(m_pSaliencyMapOfInt->rows, m_pSaliencyMapOfInt->cols, CV_32FC1);
+	cvAddWeighted(m_pSaliencyMapOfInt, m_featWeight.val[0], m_pSaliencyMapOfCol, m_featWeight.val[1], 0, pDstMap);
+	cvAddWeighted(m_pSaliencyMapOfOri, m_featWeight.val[2], pDstMap, 1.0, 0, pDstMap);
 
 	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(m_pOriginImg).height, cvGetSize(m_pOriginImg).width, CV_32FC1);
 	cvResize(pDstMap, pDstMap_oriSize, CV_INTER_LINEAR);
 	cvNormalize(pDstMap_oriSize, pDstMap_oriSize, 1.0, 0.0, CV_MINMAX, NULL);
 	IplImage* pDstImg = MatToImage(pDstMap_oriSize);
-
-	cvReleaseMat(&pIntMap);
-	cvReleaseMat(&pColMap);
-	cvReleaseMat(&pOriMap);
-	//cvReleaseMat(&pDstMap_oriSize);
+	//cvReleaseMatHeader(&pDstMap_oriSize);
 	return pDstImg;
 }
 
 IplImage* VAMToolbox::GetSaliencyMapOfIntensity(IplImage* pSrcImg)
 {
-	if(pSrcImg != NULL){
+	if(m_pSaliencyMapOfInt == NULL){
 		LoadImage(pSrcImg);
-	}else if(m_pOriginImg == NULL){
-		return NULL;
+		BuildImgPyr();
+		m_pSaliencyMapOfInt = GetIntMap();
 	}
-	CvMat *pMap;
-	BuildImgPyr();
-	pMap = GetIntMap();
-
 	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(m_pOriginImg).height, cvGetSize(m_pOriginImg).width, CV_32FC1);
-	cvResize(pMap, pDstMap_oriSize, CV_INTER_LINEAR);
+	cvResize(m_pSaliencyMapOfInt, pDstMap_oriSize, CV_INTER_LINEAR);
 	cvNormalize(pDstMap_oriSize, pDstMap_oriSize, 1.0, 0.0, CV_MINMAX, NULL);
 	IplImage* pDstImg = MatToImage(pDstMap_oriSize);
-	cvReleaseMat(&pMap);
-	//cvReleaseMat(&pDstMap_oriSize);
+	//cvReleaseMatHeader(&pDstMap_oriSize);
 	return pDstImg;
 }
 
 IplImage* VAMToolbox::GetSaliencyMapOfColor(IplImage* pSrcImg)
 {
-	if(pSrcImg != NULL){
+	if(m_pSaliencyMapOfCol == NULL){
 		LoadImage(pSrcImg);
-	}else if(m_pOriginImg == NULL){
-		return NULL;
+		BuildImgPyr();
+		m_pSaliencyMapOfCol = GetColMap();
 	}
-	CvMat *pMap;
-	BuildImgPyr();
-	pMap = GetColMap();
-
 	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(m_pOriginImg).height, cvGetSize(m_pOriginImg).width, CV_32FC1);
-	cvResize(pMap, pDstMap_oriSize, CV_INTER_LINEAR);
+	cvResize(m_pSaliencyMapOfCol, pDstMap_oriSize, CV_INTER_LINEAR);
 	cvNormalize(pDstMap_oriSize, pDstMap_oriSize, 1.0, 0.0, CV_MINMAX, NULL);
 	IplImage* pDstImg = MatToImage(pDstMap_oriSize);
-	cvReleaseMat(&pMap);
-	//cvReleaseMat(&pDstMap_oriSize);
+	//cvReleaseMatHeader(&pDstMap_oriSize);
 	return pDstImg;
 }
 
 IplImage* VAMToolbox::GetSaliencyMapOfOrientation(IplImage* pSrcImg)
 {
-	if(pSrcImg != NULL){
+	if(m_pSaliencyMapOfOri == NULL){
 		LoadImage(pSrcImg);
-	}else if(m_pOriginImg == NULL){
-		return NULL;
+		BuildImgPyr();
+		m_pSaliencyMapOfOri = GetOriMap();
 	}
-	CvMat *pMap;
-	BuildImgPyr();
-	pMap = GetOriMap();
-
 	CvMat* pDstMap_oriSize = cvCreateMat(cvGetSize(m_pOriginImg).height, cvGetSize(m_pOriginImg).width, CV_32FC1);
-	cvResize(pMap, pDstMap_oriSize, CV_INTER_LINEAR);
+	cvResize(m_pSaliencyMapOfOri, pDstMap_oriSize, CV_INTER_LINEAR);
 	cvNormalize(pDstMap_oriSize, pDstMap_oriSize, 1.0, 0.0, CV_MINMAX, NULL);
 	IplImage* pDstImg = MatToImage(pDstMap_oriSize);
-	cvReleaseMat(&pMap);
-	//cvReleaseMat(&pDstMap_oriSize);
+	//cvReleaseMatHeader(&pDstMap_oriSize);
 	return pDstImg;
 }
 
@@ -244,11 +230,11 @@ CvMat* VAMToolbox::GetColMap()
 	return pSumMat;
 }
 
-	/**
-	 * 获取方向特征的显著图
-	 * @param
-	 * @return 失败返回NULL
-	 */
+/**
+ * 获取方向特征的显著图
+ * @param
+ * @return 失败返回NULL
+ */
 CvMat* VAMToolbox::GetOriMap()
 {
 	int numOfMaps;
@@ -350,8 +336,8 @@ void VAMToolbox::DecoupleHue(CvMat *rMat, CvMat *gMat,CvMat *bMat, CvMat* iMat, 
 					val = 0;
 				}else{
 					r = cvmGet(rMat, m, n);
-					g = cvmGet(rMat, m, n);
-					b = cvmGet(rMat, m, n);
+					g = cvmGet(gMat, m, n);
+					b = cvmGet(bMat, m, n);
 					val = r-(g+b)/2;
 				}
 				cvmSet(dstMat, m, n, val);
@@ -365,8 +351,8 @@ void VAMToolbox::DecoupleHue(CvMat *rMat, CvMat *gMat,CvMat *bMat, CvMat* iMat, 
 					val = 0;
 				}else{
 					r = cvmGet(rMat, m, n);
-					g = cvmGet(rMat, m, n);
-					b = cvmGet(rMat, m, n);
+					g = cvmGet(gMat, m, n);
+					b = cvmGet(bMat, m, n);
 					val = g-(r+b)/2;
 				}
 				cvmSet(dstMat, m, n, val);
@@ -380,8 +366,8 @@ void VAMToolbox::DecoupleHue(CvMat *rMat, CvMat *gMat,CvMat *bMat, CvMat* iMat, 
 					val = 0;
 				}else{
 					r = cvmGet(rMat, m, n);
-					g = cvmGet(rMat, m, n);
-					b = cvmGet(rMat, m, n);
+					g = cvmGet(gMat, m, n);
+					b = cvmGet(bMat, m, n);
 					val = b-(r+g)/2;
 				}
 				cvmSet(dstMat, m, n, val);
@@ -395,8 +381,8 @@ void VAMToolbox::DecoupleHue(CvMat *rMat, CvMat *gMat,CvMat *bMat, CvMat* iMat, 
 					val = 0;
 				}else{
 					r = cvmGet(rMat, m, n);
-					g = cvmGet(rMat, m, n);
-					b = cvmGet(rMat, m, n);
+					g = cvmGet(gMat, m, n);
+					b = cvmGet(bMat, m, n);
 					val = r+g-2*(abs(r-g)+b);
 				}
 				cvmSet(dstMat, m, n, val);
@@ -456,6 +442,7 @@ void VAMToolbox::BuildColPyr(CvMat*** pppRpyr, CvMat*** pppGpyr, CvMat*** pppBpy
 		cvReleaseMat(&b);
 	}
 }
+
 CvMat*** VAMToolbox::BuildOriPyr()
 {
 	CvMat*** pppOriPyr = (CvMat***)calloc(m_numOfOri, sizeof(CvMat**));
@@ -469,6 +456,7 @@ CvMat*** VAMToolbox::BuildOriPyr()
 			pppOriPyr[i][j] = cvCreateMat(m_ppIntPyr[j]->rows, m_ppIntPyr[j]->cols, CV_32FC1);
 			assert(pppOriPyr[i][j] != NULL);
 			GaborFilterImage(m_ppIntPyr[j], pppOriPyr[i][j], j, i);
+			//DispMat(pppOriPyr[i][j]);
 		}	
 	}
 	return pppOriPyr;
@@ -592,6 +580,12 @@ CvMat** VAMToolbox::CalcOriFeatMap(CvMat*** pppOriPyr, int *numOfMaps)
 	}
 	for(int i=0; i<24; i++){
 		VAMNormalize(ppOriFeatMap[i], ppOriFeatMap[i]);
+#ifdef _VAM_SHOW_ORI_FEATMAP_
+		CvMat* mm = cvCreateMat(m_pOriginImg->height, m_pOriginImg->width, CV_32FC1);
+		cvResize(ppOriFeatMap[i], mm);
+		DispMat(mm);
+		cvReleaseMat(&mm);
+#endif		
 	}
 	*numOfMaps = 24;
 	return ppOriFeatMap;
@@ -608,8 +602,8 @@ void VAMToolbox::VAMNormalize(CvMat* src, CvMat* dst)
 		case VAM_NON_LINEAR_AMPLIFICATION:
 			NonLinearAmp(src, dst);
 			break;
-		case VAM_ITERATIVE_LOCALIZED_INTERACTIONS:
-			IterativeNorm(src, dst, 6);
+		case VAM_ITERATIVE:
+			IterativeNorm(src, dst, 10);
 			break;
 		default:
 			break;
@@ -655,8 +649,8 @@ void VAMToolbox::IterativeNorm(CvMat *src, CvMat *dst, int nIteration)
 	radius = sz/8;
 	if(radius <= 0){
 		radius = 1;
-	}else if(radius > 8){
-		radius = 8;
+	}else if(radius > 4){
+		radius = 4;
 	}
 	width = radius*2+1;
 
@@ -680,28 +674,35 @@ void VAMToolbox::IterativeNorm(CvMat *src, CvMat *dst, int nIteration)
 //Truncated Filter
 void VAMToolbox::TrunConv(CvMat *src, CvMat *dst, CvMat *T)
 {
-	assert(src != NULL && dst != NULL && T != NULL);
-	cvFilter2D(src, dst, T);
+    cvFilter2D(src, dst, T);
+ //   double minVal, maxVal;
+	//cvMinMaxLoc(dst, &minVal, &maxVal, NULL, NULL, NULL);
+	////printf("\nMinVal = %f, maxVal = %f", minVal, maxVal);*/
+	//int radius = (T->rows-1)/2;
+	//SetValInRectRange(dst, minVal, 0, 0, dst->cols, radius);
+	//SetValInRectRange(dst, minVal, 0, dst->rows - radius, dst->cols, radius);
+	//SetValInRectRange(dst, minVal, 0, radius, radius, dst->rows - 2*radius);
+	//SetValInRectRange(dst, minVal, dst->cols - radius, radius, radius, dst->rows - 2*radius);
 	
-	int r, c, radius;
-	radius = T->rows;
-	for(r=0; r < radius; r++){
-		for(c=0; c  < radius; c++){
-			cvmSet(dst, r, c, 0.0);
-		}
-		for(c= src->cols - radius; c  < src->cols; c++){
-			cvmSet(dst, r, c, 0.0);
-		}
-	}
 
-	for(r=src->rows - radius; r < src->rows; r++){
-		for(c=0; c  <radius; c++){
-			cvmSet(dst, r, c, 0.0);
-		}
-		for(c= src->cols - radius; c  < src->cols; c++){
-			cvmSet(dst, r, c, 0.0);
-		}
-	}
+	//assert(src != NULL && dst != NULL && T != NULL);
+	//CvMat* pResultMat = cvCreateMat(src->rows, src->cols, src->type);
+	//assert(pResultMat != NULL);
+	//
+	//if(min(src->rows, src->cols) <= T->rows){ //the size of input mat is not larger the template
+	//	TrunConvInRange(src, pResultMat, T, 0, src->rows-1, 0, src->cols-1);
+	//}else{
+	//	cvFilter2D(src, pResultMat, T);
+	//	int radius = (T->rows-1)/2;
+	//	TrunConvInRange(src, pResultMat, T, 0, radius - 1, 0, src->cols - 1);
+	//	TrunConvInRange(src, pResultMat, T, src->rows - radius, src->rows - 1, 0, src->cols - 1);
+	//	TrunConvInRange(src, pResultMat, T, radius, src->rows - radius - 1, 0, radius - 1);
+	//	TrunConvInRange(src, pResultMat, T, radius, src->rows - radius - 1, 
+	//		src->cols - radius - 1, src->cols - 1);
+	//	
+	//}
+	//cvCopy(pResultMat, dst, NULL);
+	//cvReleaseMat(&pResultMat);
 
 	/*int rCen, cCen, r, c, radius;
 	double TSum, overlapTSum, overlapMulSum;
@@ -735,6 +736,35 @@ void VAMToolbox::TrunConv(CvMat *src, CvMat *dst, CvMat *T)
 	cvReleaseMat(&pResultMat);*/
 }
 
+void VAMToolbox::TrunConvInRange(CvMat* src, CvMat* dst, CvMat* T, int rowStart, int rowEnd, int colStart, int colEnd)
+{
+	assert(src != dst);
+	int rCen, cCen, r, c, radius;
+	double TSum, overlapTSum, overlapMulSum;
+	
+	CvScalar tempTSum;
+	tempTSum = cvSum(T);
+	TSum = tempTSum.val[0];
+
+	radius = (T->rows - 1) / 2;
+	for(rCen = rowStart; rCen <= rowEnd; rCen++){
+		for(cCen = colStart; cCen <= colEnd; cCen++){	
+			overlapTSum = 0.0;
+			overlapMulSum = 0.0;
+			for(r = -radius; r <= radius; r++){
+				for(c = -radius; c<= radius; c++){
+					if(r + rCen < 0 || r + rCen >= src->rows
+						|| c + cCen < 0 || c + cCen >= src->cols){
+							continue;
+					}
+					overlapTSum += cvmGet(T, r + radius, c + radius);
+					overlapMulSum += (cvmGet(T, r + radius, c+ radius) * cvmGet(src, r + rCen, c + cCen));
+				}
+			}
+			cvmSet(dst, rCen, cCen, TSum * overlapMulSum / overlapTSum);	
+		}
+	}
+}
 //用全局的非线性放大法进行图像的正规化操作
 void VAMToolbox::NonLinearAmp(CvMat *src,CvMat *dst)
 {
@@ -900,7 +930,7 @@ void VAMToolbox::GaborFilterImage(CvMat *src, CvMat *dst, int scale, int ori)
 	CvMat *Gr,*Gi;
 	Gr = cvCreateMat(m_gaborSize, m_gaborSize, CV_32FC1);
 	Gi = cvCreateMat(m_gaborSize, m_gaborSize,CV_32FC1);
-	MakeGaborFilter(Gr, Gi, scale, ori, m_gaborUL, m_gaborUH, m_numOfGaborScale, m_numOfOri, 0);
+	MakeGaborFilter(Gr, Gi, scale, ori, m_gaborUL, m_gaborUH, m_numOfGaborScale, m_numOfOri, 1);
 	cvFilter2D(src,dst,Gr,cvPoint(-1,-1));
-	cvNormalize(dst, dst, 1, 0, CV_MINMAX, NULL);
+	//cvNormalize(dst, dst, 1, 0, CV_MINMAX, NULL);
 }
