@@ -13,5 +13,8 @@ void Clamp(CvMat *src,CvMat *dst);
 void ReleaseBatch(CvMat*** mat, int numOfMats);
 void ReleaseBatch(CvMat**** mat, int numOfMats);
 bool CheckNegative(CvMat* src);
-
+void DispMat(CvMat* mat);
+void SetValInRectRange(CvMat* mat, double val, int x, int y, int width, int height);
+IplImage* GetSpotlightImage(IplImage* srcImage, IplImage* salMap);
+IplImage* GetFloatImage(IplImage* srcImage);
 #endif
